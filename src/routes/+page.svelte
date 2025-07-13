@@ -4,15 +4,50 @@ interface Times {
 	short: number
 	long: number
 }
-const TIMES: Times = {
-	work: 25 * 60,
-	short: 5 * 60,
-	long: 30 * 60,
-}
 
 type Phase = "work" | "short" | "long"
 // Number of short breaks before a long break (default 3)
 let shortBreaksBeforeLong = $state(3)
+// phase lengths
+const initialWorkMin = 25
+const initialWorkSec = 0
+let workLengthMin = $state(initialWorkMin)
+let workLengthSec = $state(initialWorkSec)
+
+const initialShortMin = 5
+const initialShortSec = 0
+let shortBreakLengthMin = $state(initialShortMin)
+let shortBreakLengthSec = $state(initialShortSec)
+
+const initialLongMin = 30
+const initialLongSec = 0
+let longBreakLengthMin = $state(initialLongMin)
+let longBreakLengthSec = $state(initialLongSec)
+
+let workLength = $derived(workLengthMin * 60 + workLengthSec)
+let shortBreakLength = $derived(shortBreakLengthMin * 60 + shortBreakLengthSec)
+let longBreakLength = $derived(longBreakLengthMin * 60 + longBreakLengthSec)
+
+$effect(() => {
+	if (workLengthSec >= 60) {
+		workLengthMin += 1
+		workLengthSec = 0
+	}
+	if (shortBreakLengthSec >= 60) {
+		shortBreakLengthMin += 1
+		shortBreakLengthSec = 0
+	}
+	if (longBreakLengthSec >= 60) {
+		longBreakLengthMin += 1
+		longBreakLengthSec = 0
+	}
+})
+
+let times: Times = $derived({
+	work: workLength,
+	short: shortBreakLength,
+	long: longBreakLength,
+})
 
 const getPhases = (shortBreaks: number): Phase[] => {
 	const phases: Phase[] = []
@@ -29,7 +64,7 @@ $effect(() => {
 	PHASES = getPhases(shortBreaksBeforeLong)
 })
 
-const PHASETIMES = $derived(PHASES.map((phase) => TIMES[phase]))
+const PHASETIMES = $derived(PHASES.map((phase) => times[phase]))
 let phaseIndex = $state(0)
 const currentPhase = $derived(PHASES[phaseIndex])
 const currentPhaseTime = $derived(PHASETIMES[phaseIndex])
@@ -40,8 +75,7 @@ let phaseName = $derived(phaseNames[PHASES[phaseIndex]])
 let phaseNameShort = $derived(phaseNamesShort[PHASES[phaseIndex]])
 
 // this is the default time
-// svelte-ignore state_referenced_locally
-let time = $state(PHASETIMES[0])
+let time = $derived(PHASETIMES[0])
 
 let seconds = $derived(Math.abs(time) % 60)
 let minutes = $derived(Math.floor(Math.abs(time) / 60))
@@ -165,11 +199,8 @@ function changephase(phase: number) {
 				<!-- phase lines -->
 				<div style="display: flex; gap: 0.5rem">
 					{#each PHASES as p, i}
-						<div
-							style="display: flex; flex-direction: column; align-items: center; margin: 0 2px"
-							class="phaseline phaseline-{p} {i === phaseIndex ? 'active' : ''}"
-						>
-							<button title={phaseNames[p]} aria-label={phaseNames[p]} onclick={() => changephase(i)}>
+						<div class="phaseline phaseline-{p} {i === phaseIndex ? 'active' : ''}">
+							<button class="unstyledbutton" title={phaseNames[p]} aria-label={phaseNames[p]} onclick={() => changephase(i)}>
 								{phaseNamesShort[p]}
 							</button>
 							<small style="font-size: 0.6rem; color: #aaa">
@@ -213,9 +244,9 @@ function changephase(phase: number) {
 					<div class="overlay-content">
 						<p>{phaseName} is over!</p>
 						<p class="timer">{timestring}</p>
-						<p>next: {phaseNames[PHASES[(phaseIndex + 1) % PHASES.length]]}</p>
-						<button onclick={nexttimer}>continue</button>
-						<button onclick={nexttimercontinue}>continue from negative time</button>
+						<p>now: {phaseNames[PHASES[(phaseIndex + 1) % PHASES.length]]}</p>
+						<button onclick={nexttimercontinue}>continue (from negative time)</button>
+						<button onclick={nexttimer}>restart {phaseNames[PHASES[(phaseIndex + 1) % PHASES.length]]} from beginning</button>
 					</div>
 				</div>
 			{/if}
@@ -225,13 +256,56 @@ function changephase(phase: number) {
 	<!-- ------------- -->
 
 	<div class="bottom">
-		<p>hello offscreen!</p>
-		<p>one day, there will be settings here..</p>
 		<h1>Settings</h1>
 		<div class="settings">
 			<label for="shortBreaksBeforeLong">Short breaks before long</label>
 			<input id="shortBreaksBeforeLong" type="number" min="1" max="10" bind:value={shortBreaksBeforeLong} style="width: 3rem; margin-left: 0.5rem" />
+			<br />
+			<h2>Phase Lengths</h2>
+			<label for="workLengthMin">Work</label>
+			<input id="workLengthMin" type="number" min="0" max="59" bind:value={workLengthMin} />
+			<input id="workLengthSec" type="number" min="0" max="60" bind:value={workLengthSec} />
+			<button
+				onclick={() => {
+					workLengthMin = initialWorkMin
+					workLengthSec = initialWorkSec
+				}}
+				title="reset work length"
+			>
+				↺
+			</button>
+			<br />
+
+			<label for="shortBreakLengthMin">Short Break</label>
+			<input id="shortBreakLengthMin" type="number" min="0" max="59" bind:value={shortBreakLengthMin} />
+			<input id="shortBreakLengthSec" type="number" min="0" max="60" bind:value={shortBreakLengthSec} />
+			<button
+				onclick={() => {
+					shortBreakLengthMin = initialShortMin
+					shortBreakLengthSec = initialShortSec
+				}}
+				title="reset short break length"
+			>
+				↺
+			</button>
+			<br />
+
+			<label for="longBreakLengthMin">Long Break</label>
+			<input id="longBreakLengthMin" type="number" min="0" max="59" bind:value={longBreakLengthMin} />
+			<input id="longBreakLengthSec" type="number" min="0" max="60" bind:value={longBreakLengthSec} />
+			<button
+				onclick={() => {
+					longBreakLengthMin = initialLongMin
+					longBreakLengthSec = initialLongSec
+				}}
+				title="reset long break length"
+			>
+				↺
+			</button>
+			<br />
 		</div>
+		<hr>
+		<footer>hi</footer>
 	</div>
 </div>
 
@@ -265,6 +339,11 @@ function changephase(phase: number) {
 }
 
 .phaseline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0px 2px;
+
   button {
     width: 2.5rem;
     height: 1rem;
@@ -274,7 +353,7 @@ function changephase(phase: number) {
     opacity: 1;
     cursor: pointer;
     transition: background 0.5s, border 0.2s, opacity 0.2s;
-    font-size: 0.5rem;
+    font-size: 0.8rem;
     color: #fff;
   }
 }
@@ -312,7 +391,13 @@ div#top {
   backdrop-filter: blur(2px) brightness(0.7);
 }
 
-.bottom {}
+.bottom {
+  width: 60vw;
+
+  @media (max-width: 720px) {
+    width: 99vw;
+  }
+}
 
 .timer {
   font-size: 4rem;
@@ -332,8 +417,11 @@ div#top {
   min-width: 350px;
   max-width: 95vw;
   margin: 2rem 0;
-  position: relative;
   backdrop-filter: blur(8px);
+
+  /* @media (max-width: 720px) {
+  width
+   } */
 }
 
 .phasetext {
@@ -341,6 +429,7 @@ div#top {
   align-items: center;
   gap: 1rem;
   min-width: 400px;
+  margin-bottom: 4px;
   justify-content: center;
 }
 
@@ -365,21 +454,21 @@ div#top {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
 
-  button {
-    margin: 0 0.5rem;
-    padding: 0.5rem 1.2rem;
-    font-size: 1rem;
-    border-radius: 0.5rem;
-    border: none;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-  }
-  button:hover {
-    background: #fff;
-    color: #333;
-  }
+button:not(.unstyledbutton) {
+  margin: 0 0.5rem;
+  padding: 0.5rem 1.2rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: #333333;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.2s, color 0.3s;
+}
+button:not(.unstyledbutton):hover {
+  background: #fff;
+  color: #333333;
 }
 </style>
