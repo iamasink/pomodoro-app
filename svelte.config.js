@@ -1,9 +1,14 @@
-import adapter from "@sveltejs/adapter-auto";
-import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
+import adapter from "@sveltejs/adapter-static"
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte"
 
 const config = {
   preprocess: vitePreprocess(),
-  kit: { adapter: adapter() },
-};
+  kit: {
+    adapter: adapter(),
+    paths: {
+      base: process.env.NODE_ENV === 'production' ? '/pomodoro-app' : '',
+    }
+  },
+}
 
-export default config;
+export default config
