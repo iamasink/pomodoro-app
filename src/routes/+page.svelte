@@ -375,7 +375,7 @@ function changephase(phase: number) {
 }
 
 div#backdrop {
-  background-image: url("eternalseptember.jpg");
+  background-image: url("/eternalseptember.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
